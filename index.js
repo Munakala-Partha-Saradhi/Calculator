@@ -1,183 +1,270 @@
+let currentInput = "0";
+let expression = "";
+let waitingForOperand = false;
+let openParentheses = 0;
+let isError = false;
 
-        let display = document.getElementById('result');
-        let currentInput = '';
-        let shouldResetDisplay = false;
+const resultDisplay = document.getElementById("result");
+const expressionDisplay = document.getElementById("expression");
 
-        // Add floating particles
-        function createParticle() {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.animationDelay = Math.random() * 2 + 's';
-            document.body.appendChild(particle);
-            
-            setTimeout(() => {
-                particle.remove();
-            }, 4000);
-        }
+function formatNumber(num) {
+  if (num === "Error") return num;
 
-        // Create particles periodically
-        setInterval(createParticle, 2000);
+  const number = parseFloat(num);
+  if (isNaN(number)) return "0";
 
-        function appendToDisplay(value) {
-            if (shouldResetDisplay) {
-                currentInput = '';
-                shouldResetDisplay = false;
-            }
+  if (
+    Math.abs(number) > 999999999 ||
+    (Math.abs(number) < 0.000001 && number !== 0)
+  ) {
+    return number.toExponential(6);
+  }
 
-            if (display.textContent === '0' && value !== '.') {
-                currentInput = value;
-            } else {
-                currentInput += value;
-            }
-            
-            display.textContent = currentInput || '0';
-            display.classList.remove('error');
-            
-            // Add glow effect
-            display.parentElement.classList.add('glow');
-            setTimeout(() => {
-                display.parentElement.classList.remove('glow');
-            }, 200);
-        }
+  return number.toLocaleString("en-US", {
+    maximumFractionDigits: 8,
+    useGrouping: true,
+  });
+}
 
-        function clearDisplay() {
-            currentInput = '';
-            display.textContent = '0';
-            display.classList.remove('error');
-            shouldResetDisplay = false;
-            
-            // Add clear effect
-            display.style.animation = 'none';
-            setTimeout(() => {
-                display.style.animation = '';
-            }, 100);
-        }
+function updateDisplay() {
+  if (isError) {
+    resultDisplay.textContent = currentInput;
+    resultDisplay.classList.add("error");
+  } else {
+    resultDisplay.textContent = formatNumber(currentInput);
+    resultDisplay.classList.remove("error");
+  }
 
-        function deleteLast() {
-            if (shouldResetDisplay) {
-                clearDisplay();
-                return;
-            }
-            
-            currentInput = currentInput.slice(0, -1);
-            display.textContent = currentInput || '0';
-            display.classList.remove('error');
-        }
+  let displayExpression = expression;
+  if (openParentheses > 0) {
+    displayExpression +=
+      '<span class="open-parentheses">' +
+      "(".repeat(openParentheses) +
+      "</span>";
+  }
+  expressionDisplay.innerHTML = displayExpression;
+}
 
-        function calculateResult() {
-            try {
-                if (!currentInput) return;
-                
-                let expression = currentInput
-                    .replace(/×/g, '*')
-                    .replace(/÷/g, '/')
-                    .replace(/−/g, '-');
-                
-                let openCount = (expression.match(/\(/g) || []).length;
-                let closeCount = (expression.match(/\)/g) || []).length;
-                
-                if (openCount !== closeCount) {
-                    throw new Error('Mismatched parentheses');
-                }
-                
-                if (/[+\-*/^]{2,}/.test(expression)) {
-                    throw new Error('Invalid operation');
-                }
-                
-                let result = eval(expression);
-                
-                if (!isFinite(result)) {
-                    throw new Error('Invalid result');
-                }
-                
-                if (result % 1 === 0) {
-                    if (result.toString().length > 12) {
-                        result = result.toExponential(3);
-                    } else {
-                        result = result.toString();
-                    }
-                } else {
-                    result = parseFloat(result.toFixed(10)).toString();
-                    if (result.length > 12) {
-                        result = parseFloat(result).toExponential(3);
-                    }
-                }
-                
-                display.textContent = result;
-                currentInput = result;
-                shouldResetDisplay = true;
-                
-                // Success animation
-                display.style.transform = 'scale(1.05)';
-                setTimeout(() => {
-                    display.style.transform = 'scale(1)';
-                }, 200);
-                
-            } catch (error) {
-                display.textContent = 'Error';
-                display.classList.add('error');
-                currentInput = '';
-                shouldResetDisplay = true;
-            }
-        }
+function inputNumber(num) {
+  if (waitingForOperand || currentInput === "0") {
+    currentInput = num;
+    waitingForOperand = false;
+  } else {
+    currentInput = currentInput + num;
+  }
+  updateDisplay();
+}
 
-        // Enhanced ripple effect
-        document.addEventListener('click', function(e) {
-            if (e.target.tagName === 'BUTTON') {
-                let button = e.target;
-                let rect = button.getBoundingClientRect();
-                let ripple = document.createElement('span');
-                let size = Math.max(rect.width, rect.height);
-                let x = e.clientX - rect.left - size / 2;
-                let y = e.clientY - rect.top - size / 2;
-                
-                ripple.style.width = ripple.style.height = size + 'px';
-                ripple.style.left = x + 'px';
-                ripple.style.top = y + 'px';
-                ripple.classList.add('ripple');
-                
-                button.appendChild(ripple);
-                
-                setTimeout(() => {
-                    ripple.remove();
-                }, 600);
-            }
-        });
+function inputDecimal() {
+  if (waitingForOperand) {
+    currentInput = "0.";
+    waitingForOperand = false;
+  } else if (currentInput.indexOf(".") === -1) {
+    currentInput = currentInput + ".";
+  }
+  updateDisplay();
+}
 
-        // Keyboard support
-        document.addEventListener('keydown', function(e) {
-            const key = e.key;
-            
-            if (key >= '0' && key <= '9') {
-                appendToDisplay(key);
-            } else if (key === '.') {
-                appendToDisplay('.');
-            } else if (key === '+') {
-                appendToDisplay('+');
-            } else if (key === '-') {
-                appendToDisplay('-');
-            } else if (key === '*') {
-                appendToDisplay('*');
-            } else if (key === '/') {
-                e.preventDefault();
-                appendToDisplay('/');
-            } else if (key === '(') {
-                appendToDisplay('(');
-            } else if (key === ')') {
-                appendToDisplay(')');
-            } else if (key === 'Enter' || key === '=') {
-                calculateResult();
-            } else if (key === 'Escape' || key === 'c' || key === 'C') {
-                clearDisplay();
-            } else if (key === 'Backspace') {
-                deleteLast();
-            } else if (key === '^') {
-                appendToDisplay('**');
-            }
-        });
+function addToExpression(value) {
+  expression += value;
+  waitingForOperand = true;
+}
 
-        // Initialize particles
-        for (let i = 0; i < 3; i++) {
-            setTimeout(createParticle, i * 1000);
-        }
+function inputOperator(op) {
+  if (currentInput !== "0" && !waitingForOperand) {
+    addToExpression(currentInput);
+  }
+  addToExpression(" " + op + " ");
+  currentInput = "0";
+  updateDisplay();
+}
+
+function inputOpenParenthesis() {
+  if (currentInput !== "0" && !waitingForOperand) {
+    addToExpression(currentInput);
+    addToExpression(" × ");
+  }
+  addToExpression("(");
+  openParentheses++;
+  currentInput = "0";
+  waitingForOperand = true;
+  updateDisplay();
+}
+
+function inputCloseParenthesis() {
+  if (openParentheses > 0) {
+    if (currentInput !== "0") {
+      addToExpression(currentInput);
+    }
+    addToExpression(")");
+    openParentheses--;
+    currentInput = "0";
+    waitingForOperand = true;
+    updateDisplay();
+  }
+}
+
+function inputSquareRoot() {
+  const value = parseFloat(currentInput);
+  if (value < 0) {
+    showError("Cannot calculate square root of negative number");
+    return;
+  }
+  const result = Math.sqrt(value);
+  currentInput = String(result);
+  updateDisplay();
+}
+
+function inputExponent() {
+  if (currentInput !== "0" && !waitingForOperand) {
+    addToExpression(currentInput);
+  }
+  addToExpression(" ^ ");
+  currentInput = "0";
+  updateDisplay();
+}
+
+function evaluateExpression(expr) {
+  try {
+    let jsExpression = expr
+      .replace(/×/g, "*")
+      .replace(/÷/g, "/")
+      .replace(/\^/g, "**");
+
+    jsExpression = jsExpression.replace(/√$$([^)]+)$$/g, (match, content) => {
+      const value = evaluateExpression(content);
+      if (value < 0) throw new Error("Square root of negative number");
+      return String(Math.sqrt(value));
+    });
+
+    if (jsExpression.includes("/0") || jsExpression.includes("/ 0")) {
+      throw new Error("Division by zero");
+    }
+
+    const result = Function('"use strict"; return (' + jsExpression + ")")();
+
+    if (!isFinite(result)) {
+      throw new Error("Result is infinite or undefined");
+    }
+
+    return result;
+  } catch (error) {
+    throw new Error("Invalid expression");
+  }
+}
+
+function calculate() {
+  try {
+    let fullExpression = expression;
+    if (currentInput !== "0") {
+      fullExpression += currentInput;
+    }
+
+    // Close any remaining open parentheses
+    fullExpression += ")".repeat(openParentheses);
+
+    if (!fullExpression.trim()) {
+      return;
+    }
+
+    const result = evaluateExpression(fullExpression);
+    currentInput = String(result);
+    expression = "";
+    openParentheses = 0;
+    waitingForOperand = true;
+    updateDisplay();
+  } catch (error) {
+    showError(error.message || "Calculation error");
+  }
+}
+
+function clearAll() {
+  currentInput = "0";
+  expression = "";
+  openParentheses = 0;
+  waitingForOperand = false;
+  isError = false;
+  updateDisplay();
+}
+
+function toggleSign() {
+  if (currentInput !== "0") {
+    currentInput = currentInput.startsWith("-")
+      ? currentInput.slice(1)
+      : "-" + currentInput;
+    updateDisplay();
+  }
+}
+
+function percentage() {
+  const value = parseFloat(currentInput);
+  if (!isNaN(value)) {
+    currentInput = String(value / 100);
+    updateDisplay();
+  }
+}
+
+function showError(message = "Error") {
+  currentInput = message;
+  isError = true;
+  updateDisplay();
+
+  setTimeout(() => {
+    isError = false;
+    clearAll();
+  }, 2000);
+}
+
+function toggleTheme() {
+  const body = document.body;
+  const calculator = document.querySelector(".calculator");
+  const themeToggle = document.querySelector(".theme-toggle");
+
+  if (body.classList.contains("light")) {
+    body.classList.remove("light");
+    body.classList.add("dark");
+    calculator.classList.remove("light");
+    calculator.classList.add("dark");
+    themeToggle.classList.remove("light");
+    themeToggle.classList.add("dark");
+  } else {
+    body.classList.remove("dark");
+    body.classList.add("light");
+    calculator.classList.remove("dark");
+    calculator.classList.add("light");
+    themeToggle.classList.remove("dark");
+    themeToggle.classList.add("light");
+  }
+}
+
+document.addEventListener("keydown", function (event) {
+  const key = event.key;
+
+  if (key >= "0" && key <= "9") {
+    inputNumber(key);
+  } else if (key === ".") {
+    inputDecimal();
+  } else if (key === "+") {
+    inputOperator("+");
+  } else if (key === "-") {
+    inputOperator("-");
+  } else if (key === "*") {
+    inputOperator("×");
+  } else if (key === "/") {
+    event.preventDefault();
+    inputOperator("÷");
+  } else if (key === "^") {
+    inputExponent();
+  } else if (key === "(") {
+    inputOpenParenthesis();
+  } else if (key === ")") {
+    inputCloseParenthesis();
+  } else if (key === "Enter" || key === "=") {
+    calculate();
+  } else if (key === "Escape" || key === "c" || key === "C") {
+    clearAll();
+  } else if (key === "%") {
+    percentage();
+  }
+});
+updateDisplay();
