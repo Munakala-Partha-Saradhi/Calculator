@@ -266,5 +266,13 @@ document.addEventListener("keydown", function (event) {
   } else if (key === "%") {
     percentage();
   }
+  else if(key=== "Backspace") {
+    if (currentInput.length > 1) {
+      currentInput = currentInput.slice(0, -1);
+    } else {
+      currentInput = "0";
+    }
+    updateDisplay();
+  }
 });
 updateDisplay();
